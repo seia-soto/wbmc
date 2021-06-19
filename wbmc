@@ -1,0 +1,189 @@
+#!/bin/zsh
+set -eu
+
+REPO=Seia-Soto/wbmc
+VERSION=1.0
+FLOC_WINDOWS_ISO=
+FLOC_BOOTABLE_DISK=
+FLOC_WINDOWS_ISO_VOL=
+
+# Temporary variables
+TVAR_A_WIPEDISK=
+TVAR_DISKUTIL_LIST=
+TVAR_HDIUTIL_MOUNT=
+
+function w_help() {
+  cat << EOF
+
+WBMC v$VERSION by Seia
+A set of scripts to make Windows Bootable Media easy on macOS.
+
+Usage:
+  ./wbmc
+
+Warnings:
+  - This script will install Homebrew on your mac if not installed
+  - This script will format the disk before copying files
+  - This script requires internet connection
+
+EOF
+}
+
+function w_check_os() {
+  if [[ $(uname) != "Darwin" ]]; then
+    echo "This script is not supported on systems that not running macOS!"
+
+    exit 1
+  fi
+}
+
+function w_install_deps() {
+  echo "Checking if all dependencies are available"
+
+  which -s brew &> /dev/null
+  if [[ $? != 0 ]]; then
+    echo " - Homebrew is not installed! Trying to install..."
+
+    /bin/zsh -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> /dev/null
+  fi
+
+  which -s wimlib-imagex &> null
+  if [[ $? != 0 ]]; then
+    echo " - wimlib is not installed! Trying to install..."
+
+    brew update &> /dev/null
+    brew install wimlib &> /dev/null
+  fi
+
+  echo " * All dependencies available!"
+}
+
+function w_diskutil_list_compact() {
+  echo " * Loading disks"
+  echo ""
+
+  if [[ -z $TVAR_DISKUTIL_LIST ]]; then
+    TVAR_DISKUTIL_LIST=$(diskutil list | grep -iwE "\/dev\/.*external.*physical" -A 2)
+  fi
+
+  echo "$TVAR_DISKUTIL_LIST"
+
+  echo ""
+}
+
+function w_select_windows_iso() {
+  echo "Selecting Windows ISO to use"
+
+  while ! [[ -f $FLOC_WINDOWS_ISO ]]; do
+    echo " * Please select valid ISO file from dialog"
+
+    FLOC_WINDOWS_ISO=$(osascript -l JavaScript -e 'a=Application.currentApplication();a.includeStandardAdditions=true;a.chooseFile({withPrompt:"Please select Windows ISO File"}).toString()')
+
+    if [[ $FLOC_WINDOWS_ISO != *.iso || ! -f $FLOC_WINDOWS_ISO ]]; then
+      echo " ! '$FLOC_WINDOWS_ISO' is not a valid iso file or does not exists!"
+
+      FLOC_WINDOWS_ISO=
+    fi
+  done
+}
+
+function w_select_disk() {
+  echo "Selecting disk to use"
+
+  while [[ -z $FLOC_BOOTABLE_DISK ]]; do
+    echo " * Please type valid disk from following list"
+
+    w_diskutil_list_compact
+
+    echo -n " ? Please type valid disk address (starting with /dev): "
+    read FLOC_BOOTABLE_DISK
+
+    echo " * Checking $FLOC_BOOTABLE_DISK"
+
+    if [[ -z $FLOC_BOOTABLE_DISK || -z $(echo $TVAR_DISKUTIL_LIST | grep -iwE "$FLOC_BOOTABLE_DISK \(.*external.*physical" | grep -iwE "\/dev\/") && -z $(echo $FLOC_BOOTABLE_DISK | grep "/dev/") ]]; then
+      echo " ! '$FLOC_BOOTABLE_DISK' is not a valid external disk!"
+
+      FLOC_BOOTABLE_DISK=
+    fi
+  done
+}
+
+function w_format_disk() {
+  echo "Formatting the disk to MS-DOS format"
+
+  echo ""
+  echo "$(echo $TVAR_DISKUTIL_LIST | grep -iwE "$FLOC_BOOTABLE_DISK \(.*external.*physical")"
+  echo ""
+
+  while [[ -z $TVAR_A_WIPEDISK ]]; do
+    echo -n " ? Do you want to format the disk and continue? [y/n]: "
+    read TVAR_A_WIPEDISK
+
+    case $TVAR_A_WIPEDISK in
+      [Yy]* ) break;;
+      [Ny]* ) echo " * Exiting..."; exit 1;;
+      * ) echo " ! Invalid option. Please retry.";;
+    esac
+  done;
+
+  echo " * Erasing disk..."
+  echo ""
+
+  diskutil eraseDisk MS-DOS "WBMC" GPT "$FLOC_BOOTABLE_DISK"
+
+  echo ""
+}
+
+function w_mount_windows_iso() {
+  echo "Mounting Windows ISO file"
+
+  FLOC_WINDOWS_ISO_VOL=$(hdiutil mount "$FLOC_WINDOWS_ISO")
+  FLOC_WINDOWS_ISO_VOL=$(echo $FLOC_WINDOWS_ISO_VOL | grep -oE "[^ ]+$" | tr -d '[:space:]')
+
+  echo " * Mounted to $FLOC_WINDOWS_ISO_VOL"
+}
+
+function w_copy_windows_iso() {
+  echo "Copying Windows ISO contents to $FLOC_BOOTABLE_DISK"
+
+  echo ""
+
+  rsync -vaP --exclude=sources/install.wim $FLOC_WINDOWS_ISO_VOL/* /Volumes/WBMC
+
+  echo ""
+}
+
+function w_copy_wim_images() {
+  echo "Splitting and copying wim images to /Volumes/WBMC/sources"
+
+  echo ""
+
+  mkdir -p /Volumes/WBMC/sources
+  wimlib-imagex split "$FLOC_WINDOWS_ISO_VOL/sources/install.wim" /Volumes/WBMC/sources/install.swm 2048
+
+  echo ""
+}
+
+function w_unmount_vols() {
+  echo "Unmounting volumes"
+
+  echo " * Unmounting the disk from system"
+  diskutil unmount "$FLOC_BOOTABLE_DISK"
+
+  echo " * Unmounting Windows ISO from system"
+  diskutil unmount "$FLOC_WINDOWS_ISO"
+}
+
+w_help
+w_check_os
+w_install_deps
+w_select_disk
+w_select_windows_iso
+w_format_disk
+w_mount_windows_iso
+w_copy_windows_iso
+w_copy_wim_images
+w_unmount_vols
+
+echo ""
+echo "Done!"
