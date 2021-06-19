@@ -168,10 +168,10 @@ function w_unmount_vols() {
   echo "Unmounting volumes"
 
   echo " * Unmounting the disk from system"
-  diskutil unmount "$FLOC_BOOTABLE_DISK"
+  diskutil unmountDisk "$FLOC_BOOTABLE_DISK"
 
   echo " * Unmounting Windows ISO from system"
-  diskutil unmount "$FLOC_WINDOWS_ISO"
+  diskutil unmount "$FLOC_WINDOWS_ISO_VOL"
 }
 
 w_help
