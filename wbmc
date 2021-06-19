@@ -16,6 +16,7 @@ OPT_DISABLE_FRONTEND=
 TVAR_A_WIPEDISK=
 TVAR_DISKUTIL_LIST=
 TVAR_HDIUTIL_MOUNT=
+TVAR_DISK_FORMAT=
 
 function w_help() {
   cat << EOF
@@ -145,7 +146,13 @@ function w_format_disk() {
   echo " * Erasing disk..."
   echo ""
 
-  diskutil eraseDisk MS-DOS "WBMC" GPT "$FLOC_BOOTABLE_DISK"
+  if [[ ! -z $OPT_USE_MBR ]]; then
+    TVAR_DISK_FORMAT=MBR
+  else
+    TVAR_DISK_FORMAT=GPT
+  fi
+
+  diskutil eraseDisk MS-DOS "WBMC" "$TVAR_DISK_FORMAT" "$FLOC_BOOTABLE_DISK"
 
   echo ""
 }
