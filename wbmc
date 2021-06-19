@@ -48,7 +48,7 @@ function w_install_deps() {
     /bin/zsh -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> /dev/null
   fi
 
-  which -s wimlib-imagex &> null
+  which -s wimlib-imagex &> /dev/null
   if [[ $? != 0 ]]; then
     echo " - wimlib is not installed! Trying to install..."
 
