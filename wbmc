@@ -2,10 +2,15 @@
 set -eu
 
 REPO=Seia-Soto/wbmc
-VERSION=1.0
+VERSION=1.1
 FLOC_WINDOWS_ISO=
 FLOC_BOOTABLE_DISK=
 FLOC_WINDOWS_ISO_VOL=
+
+# Options
+OPT_USE_MBR=
+OPT_ASSUME_YES=
+OPT_DISABLE_FRONTEND=
 
 # Temporary variables
 TVAR_A_WIPEDISK=
@@ -19,7 +24,12 @@ WBMC v$VERSION by Seia
 A set of scripts to make Windows Bootable Media easy on macOS.
 
 Usage:
-  ./wbmc
+  ./wbmc [options]
+
+  [-h]    Print help message and exit
+  [-m]    Force using MBR instead of GPT
+  [-y]    Assume YES for all confirmation prompts
+  [-c]    Prevent using GUI components
 
 Warnings:
   - This script won't download Windows ISO file
@@ -78,7 +88,12 @@ function w_select_windows_iso() {
   while ! [[ -f $FLOC_WINDOWS_ISO ]]; do
     echo " * Please select valid ISO file from dialog"
 
-    FLOC_WINDOWS_ISO=$(osascript -l JavaScript -e 'a=Application.currentApplication();a.includeStandardAdditions=true;a.chooseFile({withPrompt:"Please select Windows ISO File"}).toString()')
+    if [[ -z $OPT_DISABLE_FRONTEND ]]; then
+      FLOC_WINDOWS_ISO=$(osascript -l JavaScript -e 'a=Application.currentApplication();a.includeStandardAdditions=true;a.chooseFile({withPrompt:"Please select Windows ISO File"}).toString()')
+    else
+      echo -n " ? Please type valid ISO location: "
+      read FLOC_WINDOWS_ISO
+    fi
 
     if [[ $FLOC_WINDOWS_ISO != *.iso || ! -f $FLOC_WINDOWS_ISO ]]; then
       echo " ! '$FLOC_WINDOWS_ISO' is not a valid iso file or does not exists!"
@@ -116,7 +131,7 @@ function w_format_disk() {
   echo "$(echo $TVAR_DISKUTIL_LIST | grep -iwE "$FLOC_BOOTABLE_DISK \(.*external.*physical")"
   echo ""
 
-  while [[ -z $TVAR_A_WIPEDISK ]]; do
+  while [[ -z $OPT_ASSUME_YES && -z $TVAR_A_WIPEDISK ]]; do
     echo -n " ? Do you want to format the disk and continue? [y/n]: "
     read TVAR_A_WIPEDISK
 
@@ -176,6 +191,19 @@ function w_unmount_vols() {
 }
 
 w_help
+
+echo "Loading options"
+
+while getopts "hmyc" opt; do
+  case $opt in
+    h) echo " * Nothing to do"; exit 0;;
+    m) echo " * Enforcing MBR instead of GPT"; OPT_USE_MBR=1;;
+    y) echo " * Assuming YES for all confirmation prompts"; OPT_ASSUME_YES=1;;
+    c) echo " * Enforcing CLI instead of GUI"; OPT_DISABLE_FRONTEND=1;;
+    *) echo " ! Unknown option $opt"; exit 1;;
+  esac
+done
+
 w_check_os
 w_install_deps
 w_select_disk

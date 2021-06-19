@@ -7,7 +7,12 @@ WBMC by Seia
 A set of scripts to make Windows Bootable Media easy on macOS.
 
 Usage:
-  ./wbmc
+  ./wbmc [options]
+
+  [-h]    Print help message and exit
+  [-m]    Force using MBR instead of GPT
+  [-y]    Assume YES for all confirmation prompts
+  [-c]    Prevent using GUI components
 
 Warnings:
   - This script won't download Windows ISO file
