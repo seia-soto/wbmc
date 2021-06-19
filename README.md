@@ -16,4 +16,6 @@ Warnings:
   - This script requires internet connection (unless deps not installed)
 ```
 
+You can see the preview of this command on YouTube: https://www.youtube.com/watch?v=JB1LY9gLcjY
+
 This project is distributed with MIT License.
