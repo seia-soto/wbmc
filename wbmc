@@ -2,7 +2,7 @@
 set -eu
 
 REPO=Seia-Soto/wbmc
-VERSION=1.1
+VERSION=1.2
 FLOC_WINDOWS_ISO=
 FLOC_BOOTABLE_DISK=
 FLOC_WINDOWS_ISO_VOL=
@@ -52,15 +52,13 @@ function w_check_os() {
 function w_install_deps() {
   echo "Checking if all dependencies are available"
 
-  which -s brew &> /dev/null
-  if [[ $? != 0 ]]; then
+  if ! command -v brew &> /dev/null; then
     echo " - Homebrew is not installed! Trying to install..."
 
     /bin/zsh -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> /dev/null
   fi
 
-  which -s wimlib-imagex &> /dev/null
-  if [[ $? != 0 ]]; then
+  if ! command -v wimlib-imagex &> /dev/null; then
     echo " - wimlib is not installed! Trying to install..."
 
     brew update &> /dev/null
